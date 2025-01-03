@@ -1,0 +1,3 @@
+Write an indesign script in JSX that searches for all instances of a given character style (selected from a dialog with labeled dropdowns) and writes to a file the text of each entry and the page number on which it occurs.  Optimize the search for character styles.
+
+Write an inDesign script in JSX that searches for all conditional text blocks (even ones that are not visible) of a given name (selected from a dialog) and writes to a file the text of each entry and the page number on which it occurs.  Optimize the search for conditional text.
