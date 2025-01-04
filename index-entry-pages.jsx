@@ -2,64 +2,64 @@
 
 // Function to get all index entries in the document
 function getAllIndexEntries(doc) {
-	var entries = [];
-	var index = doc.indexes[0]; // Assuming there's only one index in the document
+    var entries = [];
+    var index = doc.indexes[0]; // Assuming there's only one index in the document
 
-	for (var i = 0; i < index.topics.length; i++) {
-		var topic = index.topics[i];
-		getIndexEntriesRecursive(topic, entries);
-	}
+    for (var i = 0; i < index.topics.length; i++) {
+        var topic = index.topics[i];
+        getIndexEntriesRecursive(topic, entries);
+    }
 
-	return entries;
+    return entries;
 }
 
 // Recursive function to get all index entries, including subtopics
 function getIndexEntriesRecursive(topic, entries) {
-	for (var i = 0; i < topic.pageReferences.length; i++) {
-		var pageRef = topic.pageReferences[i];
-		entries.push({
-			text: topic.name,
-			page: pageRef.sourceText.parentTextFrames[0].parentPage.name
-		});
-	}
+    for (var i = 0; i < topic.pageReferences.length; i++) {
+        var pageRef = topic.pageReferences[i];
+        entries.push({
+            text: topic.name,
+            page: pageRef.sourceText.parentTextFrames[0].parentPage.name
+        });
+    }
 
-	for (var j = 0; j < topic.topics.length; j++) {
-		getIndexEntriesRecursive(topic.topics[j], entries);
-	}
+    for (var j = 0; j < topic.topics.length; j++) {
+        getIndexEntriesRecursive(topic.topics[j], entries);
+    }
 }
 
 // Function to write results to a file
 function writeResultsToFile(results, filePath) {
-	var file = new File(filePath);
-	file.encoding = "UTF-8";
-	file.open("w");
+    var file = new File(filePath);
+    file.encoding = "UTF-8";
+    file.open("w");
 
-	file.writeln("Index Entries:");
-	for (var i = 0; i < results.length; i++) {
-		file.writeln(results[i].text + " (Page " + results[i].page + ")");
-	}
+    file.writeln("Index Entries:");
+    for (var i = 0; i < results.length; i++) {
+        file.writeln(results[i].text + " (Page " + results[i].page + ")");
+    }
 
-	file.close();
+    file.close();
 }
 
 // Main script
 try {
-	var doc = app.activeDocument;
-	if (!doc) {
-		throw new Error("No active document found.");
-	}
+    var doc = app.activeDocument;
+    if (!doc) {
+        throw new Error("No active document found.");
+    }
 
-	var indexEntries = getAllIndexEntries(doc);
+    var indexEntries = getAllIndexEntries(doc);
 
-	if (indexEntries.length === 0) {
-		alert("No index entries found in the document.");
-	} else {
-		var filePath = File.saveDialog("Save index entries as", "*.txt");
-		if (filePath) {
-			writeResultsToFile(indexEntries, filePath);
-			alert("Index entries have been saved to " + filePath);
-		}
-	}
+    if (indexEntries.length === 0) {
+        alert("No index entries found in the document.");
+    } else {
+        var filePath = File.saveDialog("Save index entries as", "*.txt");
+        if (filePath) {
+            writeResultsToFile(indexEntries, filePath);
+            alert("Index entries have been saved to " + filePath);
+        }
+    }
 } catch (error) {
-	alert("An error occurred: " + error.message);
+    alert("An error occurred: " + error.message);
 }
