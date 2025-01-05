@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+# pylint: disable=invalid-name
+
+import os.path
+import re
+import sys
+import csv
+from copy import deepcopy
+from dataclasses import dataclass, field
+from typing import Optional
+
+import fire
+
+# from fodt_template import indic2arabic, log_debug
+from fodt_template.languages import ArabicScript
+# from fodt_template.meta import DocumentMeta
+# from fodt_template.nodes import Index, IndexEntry, IndexHeading
+# from fodt_template.templates import *
+from fodt_template.verses import VerseStyle, proper_books_names, VerseReference, VerseReferenceList
+
+def first_char(text: str) -> str:
+    return ArabicScript.strip_text(text)[0]
+
+
+@dataclass
+class VerseEntry:
+    item: str
+    subitem: str = None
+    pages: list[str] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        return f'Item: {self.item} | Subitem: {self.subitem} | Pages: {self.pages}'
+
+    def __post_init__(self):
+        self.subitem = re.sub(r'^0+', '', self.subitem)
+        self.subitem = re.sub(r':\u200f*0+', ':', self.subitem)
+        # print(self.subitem, file=sys.stderr)
+
+    def sort(self) -> str:
+        return self.item.ljust(100) \
+            + ':' + re.sub(
+                r':\d+',
+                lambda m: ':' + m[0].rjust(3, '0'),
+                re.sub(r'^\d+', lambda m: m[0].rjust(3, '0'), self.subitem)
+            )
+
+    @classmethod
+    def string2set(cls, numbers: str) -> list[int]:
+        nums = re.split(r'\s*[,;،؛]\s*', numbers)
+        i = 0
+        while i < len(nums):
+            series = re.split(r'\s*[\-]\s*', nums[i])
+            assert 0 < len(series) < 3
+            if len(series) > 1:
+                nums[i] = series[0]
+                for j in range(int(series[0])+1, int(series[1])+1):
+                    nums.append(j)
+
+            i += 1
+
+        nums = list(set([int(indic2arabic(n)) for n in nums]))
+        nums.sort()
+
+        return nums
+
+    def pages_compact(self) -> list[str]:
+        pages: list = self.string2set(','.join(self.pages))
+
+        i = 1
+        last_page = None
+        while i < len(pages):
+            if not last_page and pages[i-1] == pages[i]-1 or (last_page and last_page == pages[i]-1):
+                last_page = pages[i]
+                del pages[i]
+
+            else:
+                if last_page:
+                    pages[i-1] = f'{pages[i-1]}-{last_page}'
+                    last_page = None
+
+                pages[i-1] = str(pages[i-1])
+                i += 1
+
+        if last_page:
+            pages[-1] = f'{pages[-1]}-{last_page}'
+        else:
+            pages[-1] = str(pages[-1])
+
+        return pages
+
+
+@dataclass
+class ScriptureIndexEntry:
+    ref: VerseReference
+    pages: list[str] = field(default_factory=list)
+    entry: str = None
+    item: str = None
+    subitem: str = None
+    modifier: str = None
+
+    def __post_init__(self):
+
+        if self.entry and '|' in self.entry:
+            self.item, self.subitem = re.split(r'\s*\|\s*', self.entry)
+        else:
+            self.item = self.entry
+            self.subitem = None
+
+    def sort(self) -> str:
+        try:
+            return str(self.ref.book_num()).rjust(3, '0') \
+                + ':' + self.ref.chapter().rjust(3, '0') \
+                + ':' + re.sub(r'^\d+', lambda m: m[0].rjust(3, '0'), self.ref.verse()) if self.ref.verse() else ''
+        except TypeError:
+            print(f'{str(self.ref.book_num())} : {self.ref.chapter()} : {self.ref.verse()} | {self.ref._set_ref_text} | {self.pages}', file=sys.stderr)
+            return 'zzzzz'
+
+    def __str__(self) -> str:
+        return f'Entry: {self.ref} | Item: {self.item} | Subitem: {self.subitem} | Modifier: {self.modifier} | Pages: {self.pages}'
+
+
+@dataclass
+class PageReference:
+    chapter: int
+    verses: list[int] = field(default_factory=list)
+    pages: list[int] = field(default_factory=list)
+
+
+def process_file(file_path: str, entries: list[ScriptureIndexEntry]):
+    try:
+        with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+
+            # Check if the required fields are present
+            if 'entry' not in reader.fieldnames or 'page' not in reader.fieldnames:
+                print(f"Error: File '{file_path}' does not contain 'entry' and 'page' columns.", file=sys.stderr)
+
+            for row in reader:
+                print(row)
+                page = row['page'].strip()
+                for vr in VerseReferenceList(text=row['entry'].strip()):
+                    entries.append(ScriptureIndexEntry(ref=vr, pages=page))
+
+            return entries
+
+    except FileNotFoundError:
+        print(f"Error: File '{file_path}' not found.", file=sys.stderr)
+    except csv.Error as e:
+        print(f"Error reading CSV file '{file_path}': {e}", file=sys.stderr)
+
+    return entries
+
+
+def cmd(
+    *csv_files: list[str],
+    verbose: bool = False,
+    output: str = None
+):
+    if output:
+        f_output = open(output, mode='w', encoding='utf-8')
+    else:
+        f_output = sys.stdout
+
+    entries: list[ScriptureIndexEntry] = []
+
+    for csv_file in csv_files:
+        entries = process_file(csv_file, entries=entries)
+
+    entries.sort(key=lambda e: ArabicScript.strip_text(e.sort()))
+
+    for entry in entries:
+
+        print(f"{entry.sort()} | {entry.ref.text_ar(mime_type='indesign')}\t{entry.pages}", file=f_output)
+
+
+if __name__ == "__main__":
+    fire.Fire(cmd)

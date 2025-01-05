@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+import pprint
+import fire
+from fodt_template.verses import *
+
+
+def cmd(ref: str):
+    vrl = VerseReferenceList(text=ref)
+    pprint.pprint([vr.text(style=VerseStyle.TEXT, mime_type='indesign') for vr in vrl])
+
+
+if __name__ == "__main__":
+    fire.Fire(cmd)
