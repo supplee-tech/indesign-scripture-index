@@ -7,24 +7,26 @@ function getAllIndexEntries(doc) {
 
     for (var i = 0; i < index.topics.length; i++) {
         var topic = index.topics[i];
-        getIndexEntriesRecursive(topic, entries);
+        getIndexEntriesRecursive(topic, "", entries);
     }
 
     return entries;
 }
 
 // Recursive function to get all index entries, including subtopics
-function getIndexEntriesRecursive(topic, entries) {
+function getIndexEntriesRecursive(topic, parentPath, entries) {
+    var currentPath = parentPath ? parentPath + "|" + topic.name : topic.name;
+
     for (var i = 0; i < topic.pageReferences.length; i++) {
         var pageRef = topic.pageReferences[i];
         entries.push({
-            text: topic.name,
+            text: currentPath,
             page: pageRef.sourceText.parentTextFrames[0].parentPage.name
         });
     }
 
     for (var j = 0; j < topic.topics.length; j++) {
-        getIndexEntriesRecursive(topic.topics[j], entries);
+        getIndexEntriesRecursive(topic.topics[j], currentPath, entries);
     }
 }
 
@@ -34,9 +36,9 @@ function writeResultsToFile(results, filePath) {
     file.encoding = "UTF-8";
     file.open("w");
 
-    file.writeln("Index Entries:");
+    file.writeln("entry,page");
     for (var i = 0; i < results.length; i++) {
-        file.writeln(results[i].text + " (Page " + results[i].page + ")");
+        file.writeln('"' + results[i].text + '", ' + results[i].page);
     }
 
     file.close();
