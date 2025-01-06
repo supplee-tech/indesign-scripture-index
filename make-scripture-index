@@ -12,12 +12,8 @@ from dataclasses import dataclass, field
 from jinja2 import Environment, FileSystemLoader
 import fire
 
-# from fodt_template import indic2arabic, log_debug
-from fodt_template.languages import ArabicScript
-# from fodt_template.meta import DocumentMeta
-# from fodt_template.nodes import Index, IndexEntry, IndexHeading
-# from fodt_template.templates import *
-from fodt_template.verses import proper_books_names, VerseReference, VerseReferenceList
+from bible_lib.languages import ArabicScript
+from bible_lib.verses import proper_books_names, VerseReference, VerseReferenceList
 
 
 COMMA = '، '
