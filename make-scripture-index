@@ -158,8 +158,11 @@ def cmd(
     output: str = None
 ):
     if output:
-        f_output = open(output, mode='w', encoding='utf-8')
+        f_output = open(output, mode='w', encoding='utf-16')
     else:
+        # Redirect stdout to a UTF-16 encoded stream
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-16')
         f_output = sys.stdout
 
     entries: list[ScriptureIndexEntry] = []
