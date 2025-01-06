@@ -1,0 +1,59 @@
+= README
+
+
+== Documentation
+
+=== Concepts
+
+You should be familiar with the following concepts in InDesign
+
+1. Character Styles
+2. Indexing
+3. Running Scripts
+
+
+=== The Problem
+
+These scripts were created to solve these problems for creating biblical scripture indices in InDesign documents:
+
+1. Separation of multi-reference entries
+    - John 3:16; 4:1 -- this reference requires two index entries: John 3:16 and John 4:1
+	- John 3:16; 4:1; Luke 1:1 -- this would require three index entries
+
+2. Creating a list of references in canonical order with headings for each new book.
+
+
+=== The Solution
+
+==== Marking References in InDesign
+
+1. **Character Style**:
+   - Create a new character style (e.g., "Biblical Reference").
+   - Apply the style to the biblical references in the text that you wish to be indexed.
+
+2. **Index Entry**
+   - Create a new index entry
+   - Set *Topic Level 1* equal to "ScripRef" (the term is case-insensitive)
+   - Place the scripture reference in *Topic Level 2*
+
+The first method using character styles is by far the easiest way of adding references to a scripture index.  However, there may be instances where you want to include reference that are not completely specified in the text.  For instance, a passage is speaking about Hebrews 4 and the reference in the text is simply "vv. 4-6".  Since there is no book or chapter specified in the reference it cannot be included in the index using charachter styles.  The second method of an index entry will be required.
+
+=== Creating the Scripture Index
+
+1. If references were marked using character styles, run the InDesign script `cstyle-text-pages.jsx` and select "Biblical Reference" (or whatever you named the style) to create a CSV file of biblical entries and the pages where they are found.
+
+2. If index entries were created for scripture references, run the InDesign script `index-entry-pages.jsx` to create a CSV file of biblical entries and the pages where they are found.
+
+3. Run the Python script `make-scripture-index` with appropriate parameters:
+
+[source,bash]
+----
+   python make-index --mode=scripture --output index.txt csv_file1 [csv_file2 ...]
+----
+
+`make-index` will produce an _InDesign Tagged Text_ file in `index.txt` with UTF-16 encoding.  This file can be read into an Indesign document using *File -> Place*.
+
+
+=== Scripts
+
+- `cstyle-text-pages.jsx`: This script creates a CSV file containing the text in a chosen character style and the pages where they are found.

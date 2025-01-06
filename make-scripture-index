@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # pylint: disable=invalid-name
 
-# import os.path
 import re
-import os
+import io
 import sys
 import csv
+from enum import Enum
 from copy import deepcopy
 from dataclasses import dataclass, field
 
@@ -20,7 +20,13 @@ from fodt_template.languages import ArabicScript
 from fodt_template.verses import proper_books_names, VerseReference, VerseReferenceList
 
 
-comma = '، '
+COMMA = '، '
+INDEX_SCRIPREF = 'scripref'
+
+
+class IndexingMode(Enum):
+    SCRIPTURE = 'scripture'
+    SUBJECT = 'subject'
 
 
 def first_char(text: str) -> str:
@@ -60,17 +66,13 @@ class Pages:
         else:
             pages[-1] = str(pages[-1])
 
-        return comma.join(pages)
+        return COMMA.join(pages)
 
 
 @dataclass
-class ScriptureIndexEntry:
-    ref: VerseReference
+class IndexEntry:
+    entry: str
     pages: Pages | int
-    entry: str = None
-    item: str = None
-    subitem: str = None
-    modifier: str = None
 
     def __post_init__(self):
         if isinstance(self.pages, str):
@@ -85,11 +87,46 @@ class ScriptureIndexEntry:
             pages.append(self.pages)
             self.pages = pages
 
+
+@dataclass
+class SubjectIndexEntry(IndexEntry):
+    item: str = None
+    subitem: str = None
+    modifier: str = None
+
+    def __post_init__(self):
+        super().__post_init__()
+
         if self.entry and '|' in self.entry:
             self.item, self.subitem = re.split(r'\s*\|\s*', self.entry)
         else:
             self.item = self.entry
             self.subitem = None
+
+    def key(self) -> str:
+        key = self.item.ljust(50, ' ')
+        if self.subitem:
+            key += '|' + self.subitem.ljust(50, ' ')
+
+        return key
+
+    def entry_text(self) -> str:
+        text = self.item
+        if self.subitem:
+            text += COMMA + ' ' + self.subitem
+
+        return text
+
+    def __str__(self) -> str:
+        return f'Entry: {self.entry} | Item: {self.item} | Subitem: {self.subitem} | Modifier: {self.modifier} | Pages: {self.pages}'
+
+
+@dataclass
+class ScriptureIndexEntry(IndexEntry):
+    ref: VerseReference
+    item: str = None
+    subitem: str = None
+    modifier: str = None
 
     def key(self) -> str:
         try:
@@ -121,31 +158,66 @@ class ScriptureIndexEntry:
         return f'Entry: {self.ref} | Item: {self.item} | Subitem: {self.subitem} | Modifier: {self.modifier} | Pages: {self.pages}'
 
 
-@dataclass
-class ScriptureIndexHeading:
+@dataclass(kw_only=True)  # pylint: disable=unexpected-keyword-arg
+class IndexHeading:
     heading: str
+    entries: list[IndexEntry] = field(default_factory=list[IndexEntry])
+
+
+@dataclass
+class ScriptureIndexHeading(IndexHeading):
     book_num: int
-    entries: list[ScriptureIndexEntry] = field(default_factory=list[ScriptureIndexEntry])
 
 
-def process_file(file_path: str, entries: list[ScriptureIndexEntry]):
+@dataclass
+class SubjectIndexHeading(IndexHeading):
+    pass
+
+
+class SubjectSubitemHeading(IndexHeading):
+    item: str
+
+
+def process_file(file_path: str, entries: list[ScriptureIndexEntry], mode: IndexingMode):
     try:
         with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
 
-            # Check if the required fields are present
-            if 'entry' not in reader.fieldnames or 'page' not in reader.fieldnames:
-                print(f"Error: File '{file_path}' does not contain 'entry' and 'page' columns.", file=sys.stderr)
+            if 'page' not in reader.fieldnames:
+                print(f"Error: File '{file_path}' does not contain 'page' column.", file=sys.stderr)
+                return entries
+
+            if 'entry' not in reader.fieldnames and 'text' not in reader.fieldnames:
+                print(f"Error: File '{file_path}' does not contain an 'entry' or 'text' column.", file=sys.stderr)
+                return entries
 
             for row in reader:
+                # print(row)
                 page = row['page'].strip()
-                for vr in VerseReferenceList(text=row['entry'].strip()):
-                    entries.append(ScriptureIndexEntry(ref=vr, pages=page, entry=row['entry']))
+
+                # scripture index
+                if 'text' in reader.fieldnames:
+                    scripref = row['text'].strip()
+                    for vr in VerseReferenceList(text=scripref):
+                        entries.append(ScriptureIndexEntry(ref=vr, pages=page, entry=scripref))
+
+                # subject index
+                elif 'entry' in reader.fieldnames:
+                    entry = SubjectIndexEntry(entry=row['entry'].strip(), pages=page)
+                    if mode == IndexingMode.SCRIPTURE:
+                        # if indexing scripture only process scripture references in a subject index
+                        if entry.item.lower() == INDEX_SCRIPREF:
+                            for vr in VerseReferenceList(text=entry.subitem):
+                                entries.append(ScriptureIndexEntry(ref=vr, pages=page, entry=row['entry']))
+
+                    elif entry.item.lower() != INDEX_SCRIPREF:
+                        entries.append(entry)
 
             return entries
 
     except FileNotFoundError:
         print(f"Error: File '{file_path}' not found.", file=sys.stderr)
+
     except csv.Error as e:
         print(f"Error reading CSV file '{file_path}': {e}", file=sys.stderr)
 
@@ -154,21 +226,23 @@ def process_file(file_path: str, entries: list[ScriptureIndexEntry]):
 
 def cmd(
     *csv_files: list[str],
+    mode: IndexingMode,
     verbose: bool = False,
     output: str = None
 ):
+    mode = IndexingMode(mode)
+    print('Mode:', mode, file=sys.stderr)
     if output:
         f_output = open(output, mode='w', encoding='utf-16')
     else:
         # Redirect stdout to a UTF-16 encoded stream
-        import io
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-16')
         f_output = sys.stdout
 
     entries: list[ScriptureIndexEntry] = []
 
     for csv_file in csv_files:
-        entries = process_file(csv_file, entries=entries)
+        entries = process_file(csv_file, entries=entries, mode=mode)
 
     entries.sort(key=lambda e: ArabicScript.strip_text(e.key()))
 
@@ -184,18 +258,43 @@ def cmd(
         else:
             i += 1
 
-    last_heading: ScriptureIndexHeading = None
-    headings: list[ScriptureIndexHeading] = []
+    last_heading: IndexHeading = None
+    headings: list[IndexHeading] = []
 
-    for entry in entries:
-        if not last_heading or entry.ref.book_num() != last_heading.book_num:
-            last_heading = ScriptureIndexHeading(book_num=entry.ref.book_num(), heading=proper_books_names(entry.ref.book_num(), lang_code='ar'))
-            headings.append(last_heading)
-        last_heading.entries.append(entry)
+    if mode == IndexingMode.SCRIPTURE:
+        print(entries, file=sys.stderr)
+        for entry in entries:
+            if not last_heading or entry.ref.book_num() != last_heading.book_num:
+                last_heading = ScriptureIndexHeading(book_num=entry.ref.book_num(), heading=proper_books_names(entry.ref.book_num(), lang_code='ar'))
+                headings.append(last_heading)
+
+            last_heading.entries.append(entry)
+
+        template_file = 'templates/scripture-index.att'
+
+    else:
+        last_subheading: SubjectSubitemHeading = None
+        for entry in entries:
+            if not last_heading or first_char(entry.item) != last_heading.heading:
+                last_heading = SubjectIndexHeading(heading=first_char(entry.item))
+                headings.append(last_heading)
+
+            if entry.subitem:
+                if not last_subheading or last_subheading.item != entry.item:
+                    last_subheading = SubjectSubitemHeading(heading=entry.item)
+                    headings.append(last_subheading)
+
+                last_subheading.entries.append(entry)
+
+            else:
+                last_heading.entries.append(entry)
+                last_subheading = None
+
+        template_file = 'templates/subject-index.att'
 
     # Set up Jinja2 environment
     env = Environment(loader=FileSystemLoader('.'))
-    template = env.get_template('templates/scripture-index.att')
+    template = env.get_template(template_file)
 
     # Render the template
     f_output.write(template.render(headings=headings))

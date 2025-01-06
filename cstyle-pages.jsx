@@ -165,7 +165,7 @@ function writeResultsToFile(results, filePath) {
 	file.encoding = "UTF-8";
 	file.open("w");
 
-	file.writeln('entry,page');
+	file.writeln('text,page');
 
 	for (var i = 0; i < results.length; i++) {
 		file.writeln('"' + results[i].text + '", ' + results[i].page);

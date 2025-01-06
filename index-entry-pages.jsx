@@ -3,6 +3,7 @@
 // Function to get all index entries in the document
 function getAllIndexEntries(doc) {
     var entries = [];
+    // TODO: Add support for multiple indexes and topics in the same document
     var index = doc.indexes[0]; // Assuming there's only one index in the document
 
     for (var i = 0; i < index.topics.length; i++) {
@@ -49,6 +50,10 @@ try {
     var doc = app.activeDocument;
     if (!doc) {
         throw new Error("No active document found.");
+    }
+
+    if (doc.indexes.length === 0) {
+        throw new Error("No index found in the document.");
     }
 
     var indexEntries = getAllIndexEntries(doc);
