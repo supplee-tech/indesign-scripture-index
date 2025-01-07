@@ -258,7 +258,7 @@ def cmd(
     headings: list[IndexHeading] = []
 
     if mode == IndexingMode.SCRIPTURE:
-        print(entries, file=sys.stderr)
+        # print(entries, file=sys.stderr)
         for entry in entries:
             if not last_heading or entry.ref.book_num() != last_heading.book_num:
                 last_heading = ScriptureIndexHeading(book_num=entry.ref.book_num(), heading=proper_books_names(entry.ref.book_num(), lang_code='ar'))

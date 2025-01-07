@@ -61,7 +61,7 @@ try {
     if (indexEntries.length === 0) {
         alert("No index entries found in the document.");
     } else {
-        var filePath = File.saveDialog("Save index entries as", "*.txt");
+        var filePath = File.saveDialog("Save index entries as", "CSV Files:*.csv");
         if (filePath) {
             writeResultsToFile(indexEntries, filePath);
             alert("Index entries have been saved to " + filePath);

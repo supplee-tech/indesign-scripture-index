@@ -41,6 +41,26 @@ function getAllConditionNames(doc) {
     // return doc.conditions.everyItem().name;
 }
 
+function getHiddenTexts(doc, conditionName) {
+	var hiddenTexts = [];
+
+	for (var i = 0; i < doc.stories.length; i++) {
+		var story = doc.stories[i];
+		for (var j = 0; j < story.texts.length; j++) {
+			var text = story.texts[j];
+			var conditions = text.appliedConditions;
+
+			for (var k = 0; k < conditions.length; k++) {
+				var condition = conditions[k];
+				if (condition.name == conditionName && condition.visible == true) {
+					hiddenTexts.push(text.contents);
+				}
+			}
+		}
+	}
+	alert("Hidden texts with condition '" + conditionName + "':\n\n" + hiddenTexts.join("\n"));
+}
+
 // Function to get text by condition name (optimized)
 function getTextByCondition(doc, conditionName) {
     var results = [];
@@ -55,6 +75,7 @@ function getTextByCondition(doc, conditionName) {
     app.findTextPreferences = app.changeTextPreferences = null;
 	// app.findTextPreferences.appliedCharacterStyle = null;
     app.findTextPreferences.appliedConditions = [condition];
+    // app.findTextPreferences.hiddenText = true;
 
     var foundItems = doc.findText();
 
@@ -185,7 +206,7 @@ function writeResultsToFile(results, filePath) {
 	var conditionNames = getAllConditionNames(doc);
 
 	// Create a dialog for style selection
-	var dialog = new Window("dialog", "Select Character Style");
+	var dialog = new Window("dialog", "Character Style Page Data");
 	dialog.orientation = "column";
 	dialog.alignChildren = ["left", "top"];
 
@@ -193,9 +214,9 @@ function writeResultsToFile(results, filePath) {
 	var dropdown = dialog.add("dropdownlist", undefined, characterStyles);
 	dropdown.selection = 0;
 
-    dialog.add("statictext", undefined, "Select a Conditional Text:");
-    var conditionDropdown = dialog.add("dropdownlist", undefined, conditionNames);
-    conditionDropdown.selection = 0;
+    // dialog.add("statictext", undefined, "Select a Conditional Text:");
+    // var conditionDropdown = dialog.add("dropdownlist", undefined, conditionNames);
+    // conditionDropdown.selection = 0;
 
 	var btnGroup = dialog.add("group");
 	btnGroup.orientation = "row";
@@ -207,7 +228,7 @@ function writeResultsToFile(results, filePath) {
 
 	okButton.onClick = function() {
 		selectedStyle = dropdown.selection.text;
-		selectedCondition = conditionDropdown.selection.text;
+		// selectedCondition = conditionDropdown.selection.text;
 		dialog.close();
 	}
 
@@ -219,19 +240,20 @@ function writeResultsToFile(results, filePath) {
 
 	var results = [];
 
-	if (selectedStyle) {
+	if (selectedStyle && selectedStyle !== "[None]") {
 		results = results.concat(getTextByCharacterStyle(doc, selectedStyle));
 	}
-	if (selectedCondition && selectedCondition!== "[None]") {
-		alert("Condition '" + selectedCondition + "' selected. Getting text... (this may take a while)...");
-		results = results.concat(getTextByCondition(doc, selectedCondition));
-	}
+	// if (selectedCondition && selectedCondition!== "[None]") {
+	// 	alert("Condition '" + selectedCondition + "' selected. Getting text... (this may take a while)...");
+	// 	getHiddenTexts(doc, selectedCondition);
+	// 	// results = results.concat(getTextByCondition(doc, selectedCondition));
+	// }
 
 	// results = results.concat(getComments(doc));
 
 	if (results.length > 0) {
 		// Prompt for save location
-		var saveFile = File.saveDialog("Save results as", "Text Files:*.txt");
+		var saveFile = File.saveDialog("Save results as", "CSV Files:*.csv");
 
 		if (saveFile) {
 			writeResultsToFile(results, saveFile.fsName);
