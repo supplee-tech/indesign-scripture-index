@@ -1,7 +1,7 @@
 <UNICODE-MAC>
 <Version:20><FeatureSet:InDesign-R2L><ColorTable:=<Black:COLOR:CMYK:Process:0,0,0,1>>
-<DefineParaStyle:Scripture Index Heading=<Nextstyle:Scripture Index Heading><cTypeface:Bold><cSize:18.000000><pTextAlignment:Center>>
-<DefineParaStyle:Scripture Index Entry=<Nextstyle:Scripture Index Entry><pTabRuler:170.07874015748033\,Right\,.\,0\,. \;>>
+<DefineParaStyle:Scripture Index Heading=<Nextstyle:Scripture Index Heading><cTypeface:Bold><cSize:16.000000><pTextAlignment:Center>>
+<DefineParaStyle:Scripture Index Entry=<Nextstyle:Scripture Index Entry><pTabRuler:150.0\,Right\,.\,0\,. \;>>
 {% for heading in headings %}<ParaStyle:Scripture Index Heading>{{ heading.heading }}
 {% for entry in heading.entries %}<ParaStyle:Scripture Index Entry>{{ entry.entry_text() }}	{{ entry.pages }}
 {% endfor %}{% endfor %}

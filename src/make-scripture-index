@@ -223,6 +223,7 @@ def process_file(file_path: str, entries: list[ScriptureIndexEntry], mode: Index
 def cmd(
     *csv_files: list[str],
     mode: IndexingMode,
+    template_file: str = None,
     verbose: bool = False,
     output: str = None
 ):
@@ -266,7 +267,8 @@ def cmd(
 
             last_heading.entries.append(entry)
 
-        template_file = 'templates/scripture-index.att'
+        if not template_file:
+            template_file = 'templates/scripture-index.att'
 
     else:
         last_subheading: SubjectSubitemHeading = None
@@ -286,10 +288,11 @@ def cmd(
                 last_heading.entries.append(entry)
                 last_subheading = None
 
-        template_file = 'templates/subject-index.att'
+        if not template_file:
+            template_file = 'templates/subject-index.att'
 
     # Set up Jinja2 environment
-    env = Environment(loader=FileSystemLoader('.'))
+    env = Environment(loader=FileSystemLoader(['.', 'templates', '/']))
     template = env.get_template(template_file)
 
     # Render the template

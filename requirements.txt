@@ -1,3 +1,4 @@
 fire
 dataclasses
 jinja2
+setuptools
