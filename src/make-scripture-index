@@ -268,7 +268,7 @@ def cmd(
             last_heading.entries.append(entry)
 
         if not template_file:
-            template_file = 'templates/scripture-index.att'
+            template_file = 'scripture-index.att'
 
     else:
         last_subheading: SubjectSubitemHeading = None
@@ -289,7 +289,7 @@ def cmd(
                 last_subheading = None
 
         if not template_file:
-            template_file = 'templates/subject-index.att'
+            template_file = 'subject-index.att'
 
     # Set up Jinja2 environment
     env = Environment(loader=FileSystemLoader(['.', 'templates', '/']))
