@@ -498,7 +498,7 @@ class VerseReferenceList(list):
             if r.book():
                 last_book = r.book()
             elif last_book:
-                print('Setting book:', last_book, file=sys.stderr)
+                # print('Setting book:', last_book, file=sys.stderr)
                 r.set_book(last_book)
                 r.book_hidden = True
             else:

@@ -17,6 +17,7 @@ from bible_lib.verses import proper_books_names, VerseReference, VerseReferenceL
 
 
 COMMA = '، '
+NOTE_MARKER = 'ح'
 INDEX_SCRIPREF = 'scripref'
 
 
@@ -30,39 +31,77 @@ def first_char(text: str) -> str:
 
 
 @dataclass
+class Page:
+    page_num: int
+    note_num: int = None
+
+    def __str__(self):
+        return str(self.page_num) + ((NOTE_MARKER + self.note_num) if self.note_num else '')
+
+    def __eq__(self, value) -> bool:
+        return str(self) == str(value)
+
+    def is_next(self, pg: 'Page') -> bool:
+        return self.page_num + 1 == pg.page_num
+
+    def __post_init__(self):
+        self.page_num = int(self.page_num)
+        if self.note_num == '0':
+            self.note_num = None
+
+    def sort_key(self) -> str:
+        return str(self.page_num).rjust(6, '0') + ((':' + str(self.note_num).rjust(5, '0')) if self.note_num else '')
+
+
+@dataclass
+class PageRange:
+    start: Page
+    end: Page = None
+
+    def __str__(self) -> str:
+        return f'{self.start.page_num}-{self.end.page_num}'
+
+    def __post_init__(self):
+        if self.end is None:
+            self.end = deepcopy(self.start)
+
+    def in_range(self, page: Page) -> bool:
+        return page.page_num >= self.start.page_num and page.page_num <= self.end.page_num
+
+    def is_next(self, page: Page) -> bool:
+        return self.end.is_next(page)
+
+
+@dataclass
 class Pages:
-    page_numbers: list[int] = field(default_factory=list)
+    page_numbers: list[Page] = field(default_factory=list[Page])
 
     def __str__(self) -> str:
         return self.compact()
 
-    def append(self, page: int):
-        self.page_numbers.append(page)
+    def append(self, page: Page):
+        if page not in self.page_numbers:
+            self.page_numbers.append(page)
 
     def compact(self) -> str:
         i = 1
-        last_page = None
-        pages = list(set(deepcopy(self.page_numbers)))
-        pages.sort()
+        page_range: PageRange = None
+        pages: list[Page | PageRange] = sorted(self.page_numbers, key=lambda x: x.sort_key())
         while i < len(pages):
-            if not last_page and pages[i-1] == pages[i]-1 or (last_page and last_page == pages[i]-1):
-                last_page = pages[i]
+            if pages[i].note_num:
+                i += 1
+
+            elif pages[i-1].is_next(pages[i]):
+                if not isinstance(pages[i-1], PageRange):
+                    page_range = PageRange(start=pages[i])
+                    pages[i-1] = page_range
+                pages[i-1].end = pages[i]
                 del pages[i]
 
             else:
-                if last_page:
-                    pages[i-1] = f'{pages[i-1]}-{last_page}'
-                    last_page = None
-
-                pages[i-1] = str(pages[i-1])
                 i += 1
 
-        if last_page:
-            pages[-1] = f'{pages[-1]}-{last_page}'
-        else:
-            pages[-1] = str(pages[-1])
-
-        return COMMA.join(pages)
+        return COMMA.join([str(pg) for pg in pages])
 
 
 @dataclass
@@ -79,6 +118,11 @@ class IndexEntry:
                 self.pages = int(self.pages)
 
         if isinstance(self.pages, int):
+            pages = Pages()
+            pages.append(Page(page_num=self.pages))
+            self.pages = pages
+
+        elif isinstance(self.pages, Page):
             pages = Pages()
             pages.append(self.pages)
             self.pages = pages
@@ -189,13 +233,27 @@ def process_file(file_path: str, entries: list[ScriptureIndexEntry], mode: Index
 
             for row in reader:
                 # print(row)
-                page = row['page'].strip()
+                page = Page(
+                    page_num=row['page'].strip(),
+                    note_num=row['note_num'].strip() if 'note_num' in row else ''
+                )
 
                 # scripture index
                 if 'text' in reader.fieldnames:
                     scripref = row['text'].strip()
+                    vr: VerseReference
                     for vr in VerseReferenceList(text=scripref):
-                        entries.append(ScriptureIndexEntry(ref=vr, pages=page, entry=scripref))
+                        if vr.verse():
+                            for v in re.split(r'\s*[,،]\s*', vr.verse()):
+                                entries.append(
+                                    ScriptureIndexEntry(
+                                        ref=VerseReference(book=vr.book(), chapter=vr.chapter(), verse=v),
+                                        pages=page,
+                                        entry=scripref
+                                    )
+                                )
+                        else:
+                            entries.append(ScriptureIndexEntry(ref=vr, pages=page, entry=scripref))
 
                 # subject index
                 elif 'entry' in reader.fieldnames:
@@ -228,7 +286,8 @@ def cmd(
     output: str = None
 ):
     mode = IndexingMode(mode)
-    print('Mode:', mode, file=sys.stderr)
+    if verbose:
+        print('Mode:', mode, file=sys.stderr)
     if output:
         f_output = open(output, mode='w', encoding='utf-16')
     else:
@@ -236,7 +295,7 @@ def cmd(
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-16')
         f_output = sys.stdout
 
-    entries: list[ScriptureIndexEntry] = []
+    entries: list[IndexEntry] = []
 
     for csv_file in csv_files:
         entries = process_file(csv_file, entries=entries, mode=mode)
