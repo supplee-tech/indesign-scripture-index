@@ -494,6 +494,7 @@ class VerseReferenceList(list):
 
         last_book = None
         last_chapter = None
+        r: VerseReference
         for r in refs:
             if r.book():
                 last_book = r.book()
@@ -502,7 +503,7 @@ class VerseReferenceList(list):
                 r.set_book(last_book)
                 r.book_hidden = True
             else:
-                print('No book!', r.text(), file=sys.stderr)
+                print(f'No book! {r.text()} | {r.ref_type}', file=sys.stderr)
 
             if r.chapter():
                 last_chapter = r.chapter()
@@ -729,6 +730,8 @@ def parse_verse_reference(text: str, page: int = None, result_type: ResultType =
                     (?P<book>
                         (
                             [123A-Z][a-z]+
+                            |
+                            [123][A-Z][a-z]+
                             |
                             [١٢٣123]\s*[{chars}]+\s*[{chars}]+
                             |
