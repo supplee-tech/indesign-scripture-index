@@ -9,28 +9,30 @@ function trim(str) {
     return str.replace(/^\s+|\s+$/g, '');
 }
 
-// // Function to get text by character style (optimized)
-// function getTextByCharacterStyle(doc, characterStyleName, inNote) {
-//     var results = [];
-//     var characterStyle = doc.characterStyles.itemByName(characterStyleName);
+function getFootnoteNumber(item) {
+	var noteNumber = null;
 
-//     app.findGrepPreferences = app.changeGrepPreferences = null;
-//     app.findGrepPreferences.findWhat = ".+"; // This will match any text
-//     app.findGrepPreferences.appliedCharacterStyle = characterStyle;
-//     app.findGrepPreferences.includeFootnotes = inNote;
+	var parent = item.parent;
+	while (parent) {
+		if (parent.constructor.name === "Footnote") {
+			var story = parent.storyOffset.parent;
+			noteNumber = 0;
+			for (var j = 0; j < story.footnotes.length; j++) {
+				if (story.footnotes[j] === parent) {
+					noteNumber = j + 1; // Footnote index is 0-based
+					break;
+				}
+			}
+			break;
+		}
+		if (parent.parent == parent) {
+			break;
+		}
+		parent = parent.parent;
+	}
 
-//     var foundItems = doc.findGrep();
-
-//     for (var i = 0; i < foundItems.length; i++) {
-//         var foundItem = foundItems[i];
-//         var text = foundItem.contents;
-//         var pageNumber = foundItem.parentTextFrames[0].parentPage.name;
-//         results.push({text: text, page: pageNumber, inNote: inNote});
-//     }
-
-//     app.findGrepPreferences = app.changeGrepPreferences = null;
-//     return results;
-// }
+	return noteNumber
+}
 
 // Function to get text by character style (optimized)
 function getTextByCharacterStyle(doc, characterStyleName, inNote) {
@@ -49,74 +51,22 @@ function getTextByCharacterStyle(doc, characterStyleName, inNote) {
 
 	for (var i = 0; i < foundItems.length; i++) {
 		var foundItem = foundItems[i];
-		var text = foundItem.contents;
 		var pageNumber = null;
-		var noteNumber = 0;
-        var isInFootnote = false;
-
-        // Check if the found item is in a footnote
-        var parent = foundItem.parent;
-        while (parent) {
-            if (parent.constructor.name === "Footnote") {
-                isInFootnote = true;
-                // noteNumber = parent.storyOffset.footnotes.indexOf(parent) + 1;
-                // noteNumber = parent.index + 1; // Footnote index is 0-based
-                var story = parent.storyOffset.parent;
-                noteNumber = 0;
-                for (var j = 0; j < story.footnotes.length; j++) {
-                    if (story.footnotes[j] === parent) {
-						noteNumber = j + 1; // Footnote index is 0-based
-                        break;
-                    }
-                }
-                break;
-            }
-			if (parent.parent == parent) {
-				break;
-			}
-            parent = parent.parent;
-        }
 
 		try {
         	pageNumber = foundItem.parentTextFrames[0].parentPage.name;
 		} catch (error) {
 			// do nothing
         }
-		results.push({text: trim(text), page: pageNumber, noteNumber: noteNumber});
+		results.push({
+			text: trim(foundItem.contents),
+			page: pageNumber,
+			noteNumber: getFootnoteNumber(foundItem),
+		});
 	}
 
 	app.findTextPreferences = app.changeTextPreferences = null;
 	return results;
-}
-
-function getTextByCharacterStyleInFootnotes(doc, characterStyleName) {
-    var results = [];
-    var characterStyle = doc.characterStyles.itemByName(characterStyleName);
-
-    app.findTextPreferences = app.changeTextPreferences = null;
-    app.findTextPreferences.appliedCharacterStyle = characterStyle;
-
-	// Search only in footnotes
-	for (var i = 0; i < doc.stories.length; i++) {
-		var story = doc.stories[i];
-		for (var j = 0; j < story.footnotes.length; j++) {
-			var footnote = story.footnotes[j];
-			if (footnote) {
-				var foundItems = footnote.findText();
-
-				for (var k = 0; k < foundItems.length; k++) {
-					var foundItem = foundItems[k];
-					var text = foundItem.contents;
-					var pageNumber = footnote.insertionPoints[0].parentTextFrames[0].parentPage.name;
-					var noteNumber = j + 1; // Footnote index is 0-based
-					results.push({text: trim(text), page: pageNumber, noteNumber: noteNumber});
-				}
-			}
-		}
-	}
-
-    app.findTextPreferences = app.changeTextPreferences = null;
-    return results;
 }
 
 // Function to get all condition names in the document
@@ -125,24 +75,23 @@ function getAllConditionNames(doc) {
     // return doc.conditions.everyItem().name;
 }
 
-function getHiddenTexts(doc, conditionName) {
-	var hiddenTexts = [];
+function getHiddenConditionalText(doc, conditionName) {
+    var results = [];
+    var condition = doc.conditions.itemByName(conditionName);
+	var hiddenTexts = doc.stories.everyItem().hiddenTexts.everyItem().getElements();
 
-	for (var i = 0; i < doc.stories.length; i++) {
-		var story = doc.stories[i];
-		for (var j = 0; j < story.texts.length; j++) {
-			var text = story.texts[j];
-			var conditions = text.appliedConditions;
-
-			for (var k = 0; k < conditions.length; k++) {
-				var condition = conditions[k];
-				if (condition.name == conditionName && condition.visible == true) {
-					hiddenTexts.push(text.contents);
-				}
-			}
+	for (i = 0; i < hiddenTexts.length; i++) {
+		var hiddenText = hiddenTexts[i];
+		if (hiddenText.texts[0].appliedConditions[0].name === conditionName) {
+		    results.push({
+				text: trim(hiddenText.texts[0].contents),
+				page: hiddenText.storyOffset.parentTextFrames[0].parentPage.name,
+				noteNumber: getFootnoteNumber(hiddenText.storyOffset)
+			});
 		}
 	}
-	alert("Hidden texts with condition '" + conditionName + "':\n\n" + hiddenTexts.join("\n"));
+
+	return results;
 }
 
 // Function to get text by condition name (optimized)
@@ -178,65 +127,6 @@ function getTextByCondition(doc, conditionName) {
     app.findTextPreferences = app.changeTextPreferences = null;
     return results;
 }
-// function getTextByCondition(doc, conditionName) {
-//     var results = [];
-//     var condition = doc.conditions.itemByName(conditionName);
-
-//     app.findChangeGrepOptions.includeFootnotes = true;
-//     app.findChangeGrepOptions.includeHiddenLayers = true;
-//     app.findChangeGrepOptions.includeLockedLayersForFind = true;
-//     app.findChangeGrepOptions.includeLockedStoriesForFind = true;
-//     app.findChangeGrepOptions.includeMasterPages = true;
-
-//     app.findGrepPreferences = app.changeGrepPreferences = null;
-//     app.findGrepPreferences.findWhat = ".+"; // This will match any text
-//     app.findGrepPreferences.appliedConditions = [condition];
-
-//     var foundItems = doc.findGrep();
-
-//     for (var i = 0; i < foundItems.length; i++) {
-//         var foundItem = foundItems[i];
-//         var text = foundItem.contents;
-//         var pageNumber = foundItem.parentTextFrames[0].parentPage.name;
-//         results.push({text: text, page: pageNumber});
-//     }
-
-//     app.findGrepPreferences = app.changeGrepPreferences = null;
-//     return results;
-// }
-
-// function getTextByCondition(doc, conditionName) {
-//     var results = [];
-//     var condition = doc.conditions.itemByName(conditionName);
-
-//     // Loop through all stories in the document
-//     for (var i = 0; i < doc.stories.length; i++) {
-//         var story = doc.stories[i];
-
-//         // Loop through all text in the story
-//         for (var j = 0; j < story.characters.length; j++) {
-//             var character = story.characters[j];
-
-//             // Check if the character has the specified condition
-//             if (character.appliedConditions.length > 0 && character.appliedConditions.itemByName(conditionName).isValid) {
-//                 var text = "";
-//                 var pageNumber = character.parentTextFrames[0].parentPage.name;
-
-//                 // Collect all consecutive characters with the same condition
-//                 while (j < story.characters.length &&
-//                        story.characters[j].appliedConditions.length > 0 &&
-//                        story.characters[j].appliedConditions.itemByName(conditionName).isValid) {
-//                     text += story.characters[j].contents;
-//                     j++;
-//                 }
-
-//                 results.push({text: text, page: pageNumber});
-//             }
-//         }
-//     }
-
-//     return results;
-// }
 
 function getComments(doc) {
     var results = [];
@@ -273,7 +163,7 @@ function writeResultsToFile(results, filePath) {
 	file.writeln('text,page,note_num');
 
 	for (var i = 0; i < results.length; i++) {
-		file.writeln('"' + results[i].text + '", ' + results[i].page + ', ' + results[i].noteNumber);
+		file.writeln('"' + results[i].text + '", ' + results[i].page + ', ' + (results[i].noteNumber ? results[i].noteNumber : ""));
 	}
 
 	file.close();
@@ -298,9 +188,9 @@ function writeResultsToFile(results, filePath) {
 	var dropdown = dialog.add("dropdownlist", undefined, characterStyles);
 	dropdown.selection = 0;
 
-    // dialog.add("statictext", undefined, "Select a Conditional Text:");
-    // var conditionDropdown = dialog.add("dropdownlist", undefined, conditionNames);
-    // conditionDropdown.selection = 0;
+    dialog.add("statictext", undefined, "Select a Conditional Text:");
+    var conditionDropdown = dialog.add("dropdownlist", undefined, conditionNames);
+    conditionDropdown.selection = 0;
 
 	var btnGroup = dialog.add("group");
 	btnGroup.orientation = "row";
@@ -312,7 +202,7 @@ function writeResultsToFile(results, filePath) {
 
 	okButton.onClick = function() {
 		selectedStyle = dropdown.selection.text;
-		// selectedCondition = conditionDropdown.selection.text;
+		selectedCondition = conditionDropdown.selection.text;
 		dialog.close();
 	}
 
@@ -326,28 +216,25 @@ function writeResultsToFile(results, filePath) {
 
 	if (selectedStyle && selectedStyle !== "[None]") {
 		results = results.concat(getTextByCharacterStyle(doc, selectedStyle, true));
-		// results = results.concat(getTextByCharacterStyleInFootnotes(doc, selectedStyle));
 	}
-	// if (selectedCondition && selectedCondition!== "[None]") {
-	// 	alert("Condition '" + selectedCondition + "' selected. Getting text... (this may take a while)...");
-	// 	getHiddenTexts(doc, selectedCondition);
-	// 	// results = results.concat(getTextByCondition(doc, selectedCondition));
-	// }
+	if (selectedCondition && selectedCondition!== "[None]") {
+		results = results.concat(getHiddenConditionalText(doc, selectedCondition));
+	}
 
 	// results = results.concat(getComments(doc));
 
 	if (results.length > 0) {
 		// Prompt for save location
-		var saveFile = File.saveDialog("Save results as", "CSV Files:*.csv");
+		var saveFile = File.saveDialog("Save results as", "*.csv");
 
 		if (saveFile) {
 			writeResultsToFile(results, saveFile.fsName);
 			alert("Results have been saved to:\n" + saveFile.fsName);
 		} else {
-			alert("Save operation cancelled.");
+			// alert("Save operation cancelled.");
 		}
 	} else {
-		alert("No text found with character style '" + selectedStyle + "'.");
+		alert("No text found.");
 	}
 
 // } catch (error) {
