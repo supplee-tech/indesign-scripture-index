@@ -1,18 +1,28 @@
 = README
 
+== Installation
+
+Install the Python script using `pip` from the project directory.
+
+[source,bash]
+pipx install .
+
+Copy the InDesign script files (*.jsx) to *User Scripts* in InDesign
+
 
 == Documentation
 
 === Concepts
 
-You should be familiar with the following concepts in InDesign
+Familiarity with the following concepts in InDesign is necessary for
 
 1. Character Styles
-2. Indexing
-3. Running Scripts
+2. Conditional Text
+3. Indexing
+4. Running Scripts
 
 
-=== The Problem
+=== The Problem.
 
 These scripts were created to solve these problems for creating biblical scripture indices in InDesign documents:
 
@@ -28,32 +38,37 @@ These scripts were created to solve these problems for creating biblical scriptu
 ==== Marking References in InDesign
 
 1. **Character Style**:
-   - Create a new character style (e.g., "Biblical Reference").
+   - Create a new character style (e.g., "ScripRef").
    - Apply the style to the biblical references in the text that you wish to be indexed.
 
-2. **Index Entry**
+2. **Conditional Text**:
+   - Create a new condition in the conditional text window (e.g. "ScripRef")
+
+3. **Index Entry**
    - Create a new index entry
    - Set *Topic Level 1* equal to "ScripRef" (the term is case-insensitive)
    - Place the scripture reference in *Topic Level 2*
 
-The first method using character styles is by far the easiest way of adding references to a scripture index.  However, there may be instances where you want to include reference that are not completely specified in the text.  For instance, a passage is speaking about Hebrews 4 and the reference in the text is simply "vv. 4-6".  Since there is no book or chapter specified in the reference it cannot be included in the index using charachter styles.  The second method of an index entry will be required.
+The first method using character styles is by far the easiest way of adding references to a scripture index.  However, there may be instances where you want to include references that are not completely specified in the document.  For instance, a passage is speaking about Hebrews 4 and the reference in the document is simply "vv. 4-6".  Since there is no book or chapter specified in the reference it cannot be included in the index using charachter styles.  The second or third method must be used.
+
+The two methods offer exactly the same functionality meaning the use of one over the other is a matter of personal preference.  If you are comfortable with creating indexes in InDesign then you might find the third method easiest.  However, the advantage of the second method is that you can see your references in the text when the conditional text is visible.
 
 === Creating the Scripture Index
 
-1. If references were marked using character styles, run the InDesign script `cstyle-text-pages.jsx` and select "Biblical Reference" (or whatever you named the style) to create a CSV file of biblical entries and the pages where they are found.
+1. If references were marked using character styles and/or conditional text, run the InDesign script `cstyle-text-pages.jsx` and select appropriate character class and condition names to create a CSV file of biblical entries and the pages where they are found.
 
 2. If index entries were created for scripture references, run the InDesign script `index-entry-pages.jsx` to create a CSV file of biblical entries and the pages where they are found.
 
 3. Run the Python script `make-scripture-index` with appropriate parameters:
 
 [source,bash]
-----
-   python make-index --mode=scripture --output index.txt csv_file1 [csv_file2 ...]
-----
+python3 make-scripture-index --mode=scripture --output index.txt csv_file1 [csv_file2 ...]
 
-`make-index` will produce an _InDesign Tagged Text_ file in `index.txt` with UTF-16 encoding.  This file can be read into an Indesign document using *File -> Place*.
+`make-scripture-index` will produce an _InDesign Tagged Text_ file in `index.txt` with UTF-16 encoding.  This file can be read into an Indesign document using *File -> Place*.
 
 
 === Scripts
 
-- `cstyle-text-pages.jsx`: This script creates a CSV file containing the text in a chosen character style and the pages where they are found.
+- `cstyle-text-pages.jsx`: This script creates a CSV file containing the all of text contained in a given character style along with their page numbers and footnote number (if applicable) where they are found.
+
+- `index-entry-pages.jsx`: This script creates a CSV file containing the index entries along with their page numbers and footnote numbers (if applicable).
