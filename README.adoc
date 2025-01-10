@@ -7,7 +7,7 @@ Install the Python script using `pip` from the project directory.
 [source,bash]
 pipx install .
 
-Copy the InDesign script files (*.jsx) to *User Scripts* in InDesign
+Copy the InDesign script files (\*.jsx) to *User Scripts* in InDesign
 
 
 == Documentation
